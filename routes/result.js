@@ -44,15 +44,36 @@ function collectStorageKeys(obj, keys = []) {
 }
 
 /**
- * Convert R2 keys to presigned view URLs in batch.
+ * Convert R2 keys to URLs.
+ * - 02-expert/ prefix keys → CDN public URL (no signing needed)
+ * - Other keys → presigned URL
  */
 async function resolveR2Urls(storageKeys) {
     const urlMap = {};
     if (!storageKeys.length) return urlMap;
 
     const uniqueKeys = [...new Set(storageKeys)];
+    const cdnBase = R2_CONFIG.publicUrl;
+    const PRESET_PREFIX = '02-expert/';
+
+    const cdnKeys = [];
+    const signKeys = [];
+    uniqueKeys.forEach(key => {
+        if (cdnBase && key.startsWith(PRESET_PREFIX)) {
+            cdnKeys.push(key);
+        } else {
+            signKeys.push(key);
+        }
+    });
+
+    // CDN keys → direct URL (fast)
+    cdnKeys.forEach(key => {
+        urlMap[key] = cdnBase + '/' + key;
+    });
+
+    // Remaining keys → presigned URL
     const results = await Promise.allSettled(
-        uniqueKeys.map(async (key) => {
+        signKeys.map(async (key) => {
             const command = new GetObjectCommand({
                 Bucket: R2_CONFIG.bucket,
                 Key: key
