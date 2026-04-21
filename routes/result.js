@@ -125,6 +125,19 @@ router.get('/:customerId', authCustomer, async (req, res, next) => {
             });
         }
 
+        // Debug: log catalog data availability
+        const cd = customer.colorDiagnosis || {};
+        console.log('[Result] catalogRecommendations:', JSON.stringify({
+            shadowBlush: (cd.catalogRecommendations?.shadowBlush || []).length,
+            lip: (cd.catalogRecommendations?.lip || []).length,
+            sampleShadow: cd.catalogRecommendations?.shadowBlush?.[0] || null
+        }));
+        console.log('[Result] productImages:', JSON.stringify({
+            shadowBlush: (cd.productImages?.shadowBlush || []).length,
+            lip: (cd.productImages?.lip || []).length,
+            sampleShadow: cd.productImages?.shadowBlush?.[0] || null
+        }));
+
         // Collect all storage keys from customer data
         const storageKeys = collectStorageKeys({
             customerPhotos: customer.customerPhotos,

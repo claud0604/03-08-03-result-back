@@ -97,6 +97,22 @@ const customerSchema = new mongoose.Schema({
             shadowBlush: [{ type: String }],
             lip: [{ type: String }]
         },
+        catalogRecommendations: {
+            shadowBlush: [{
+                catalogItemId: { type: String },
+                name: { type: String },
+                brand: { type: String },
+                imageUrl: { type: String },
+                subcategory: { type: String }
+            }],
+            lip: [{
+                catalogItemId: { type: String },
+                name: { type: String },
+                brand: { type: String },
+                imageUrl: { type: String },
+                subcategory: { type: String }
+            }]
+        },
         colorUsage: {
             nail: [{ type: String }],
             hair: [{ type: String }],
