@@ -54,12 +54,12 @@ async function resolveR2Urls(storageKeys) {
 
     const uniqueKeys = [...new Set(storageKeys)];
     const cdnBase = R2_CONFIG.publicUrl;
-    const PRESET_PREFIX = '02-expert/';
+    const CDN_PREFIXES = ['02-expert/', '04-update-mgmt/', 'catalog/'];
 
     const cdnKeys = [];
     const signKeys = [];
     uniqueKeys.forEach(key => {
-        if (cdnBase && key.startsWith(PRESET_PREFIX)) {
+        if (cdnBase && CDN_PREFIXES.some(p => key.startsWith(p))) {
             cdnKeys.push(key);
         } else {
             signKeys.push(key);
