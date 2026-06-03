@@ -96,6 +96,51 @@ async function resolveR2Urls(storageKeys) {
 }
 
 /**
+ * GET /api/result/:customerId/branding
+ * Returns partner branding info (logo + bgColor) without auth.
+ * Called on page load before intro animation to apply partner logos.
+ */
+router.get('/:customerId/branding', async (req, res, next) => {
+    try {
+        const { customerId } = req.params;
+
+        const customer = await Customer.findOne({ customerId })
+            .select('customerInfo.partner')
+            .lean();
+
+        if (!customer) {
+            return res.json({ success: true, partnerConfig: null });
+        }
+
+        const partnerCode = customer.customerInfo.partner || '';
+        if (!partnerCode) {
+            return res.json({ success: true, partnerConfig: null });
+        }
+
+        let partnerConfig = null;
+        try {
+            const settings = await AppSettings.findOne({ type: 'partners' });
+            if (settings && settings.data && settings.data.partners) {
+                const match = settings.data.partners.find(p => p.code === partnerCode);
+                if (match) {
+                    partnerConfig = {
+                        name: match.name,
+                        logoUrl: match.logoKey ? (R2_CONFIG.publicUrl + '/' + match.logoKey) : '',
+                        bgColor: match.bgColor || ''
+                    };
+                }
+            }
+        } catch (e) {
+            console.error('[Branding] Partner config lookup error:', e.message);
+        }
+
+        res.json({ success: true, partnerConfig });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
  * GET /api/result/:customerId
  * Get full diagnosis result with resolved image URLs.
  */
