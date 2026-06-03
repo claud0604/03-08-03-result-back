@@ -6,6 +6,8 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const Customer = require('../models/Customer');
+const AppSettings = require('../models/AppSettings');
+const { R2_CONFIG } = require('../config/r2');
 
 /**
  * POST /api/auth/verify
@@ -64,14 +66,36 @@ router.post('/verify', async (req, res, next) => {
             { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
         );
 
+        // Resolve partner config
+        let partnerConfig = null;
+        const partnerCode = customer.customerInfo.partner || '';
+        if (partnerCode) {
+            try {
+                const settings = await AppSettings.findOne({ type: 'partners' });
+                if (settings && settings.data && settings.data.partners) {
+                    const match = settings.data.partners.find(p => p.code === partnerCode);
+                    if (match) {
+                        partnerConfig = {
+                            name: match.name,
+                            logoUrl: match.logoKey ? (R2_CONFIG.publicUrl + '/' + match.logoKey) : '',
+                            bgColor: match.bgColor || ''
+                        };
+                    }
+                }
+            } catch (e) {
+                console.error('[Auth] Partner config lookup error:', e.message);
+            }
+        }
+
         res.json({
             success: true,
             token,
             customer: {
                 name: customer.customerInfo.name,
                 customerId: customer.customerId,
-                partner: customer.customerInfo.partner || ''
-            }
+                partner: partnerCode
+            },
+            partnerConfig
         });
     } catch (error) {
         next(error);
