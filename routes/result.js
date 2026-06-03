@@ -5,6 +5,7 @@
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
+const AppSettings = require('../models/AppSettings');
 const authCustomer = require('../middleware/authCustomer');
 const { r2Client, R2_CONFIG } = require('../config/r2');
 const { GetObjectCommand } = require('@aws-sdk/client-s3');
@@ -150,12 +151,34 @@ router.get('/:customerId', authCustomer, async (req, res, next) => {
         // Resolve keys to presigned URLs
         const imageUrls = await resolveR2Urls(storageKeys);
 
+        // Resolve partner config if customer has a partner assigned
+        let partnerConfig = null;
+        const partnerCode = customer.customerInfo.partner || '';
+        if (partnerCode) {
+            try {
+                const settings = await AppSettings.findOne({ type: 'partners' });
+                if (settings && settings.data && settings.data.partners) {
+                    const match = settings.data.partners.find(p => p.code === partnerCode);
+                    if (match) {
+                        partnerConfig = {
+                            name: match.name,
+                            logoUrl: match.logoKey ? (R2_CONFIG.publicUrl + '/' + match.logoKey) : '',
+                            bgColor: match.bgColor || ''
+                        };
+                    }
+                }
+            } catch (e) {
+                console.error('[Result] Partner config lookup error:', e.message);
+            }
+        }
+
         res.json({
             success: true,
             data: {
                 customerInfo: {
                     name: customer.customerInfo.name,
-                    gender: customer.customerInfo.gender
+                    gender: customer.customerInfo.gender,
+                    partner: partnerCode
                 },
                 customerPhotos: customer.customerPhotos,
                 colorDiagnosis: customer.colorDiagnosis,
@@ -163,7 +186,8 @@ router.get('/:customerId', authCustomer, async (req, res, next) => {
                 bodyAnalysis: customer.bodyAnalysis,
                 styling: customer.styling
             },
-            imageUrls
+            imageUrls,
+            partnerConfig
         });
     } catch (error) {
         next(error);

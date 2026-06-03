@@ -69,7 +69,8 @@ router.post('/verify', async (req, res, next) => {
             token,
             customer: {
                 name: customer.customerInfo.name,
-                customerId: customer.customerId
+                customerId: customer.customerId,
+                partner: customer.customerInfo.partner || ''
             }
         });
     } catch (error) {

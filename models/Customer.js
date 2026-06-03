@@ -24,7 +24,8 @@ const customerSchema = new mongoose.Schema({
         weight: { type: Number, required: true },
         clothingSize: { type: String, default: '' },
         diagnosisReason: { type: String, default: '' },
-        stylePreference: { type: String, default: '' }
+        stylePreference: { type: String, default: '' },
+        partner: { type: String, default: '' }
     },
 
     appointment: {
