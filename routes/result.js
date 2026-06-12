@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
 const AppSettings = require('../models/AppSettings');
+const CatalogItem = require('../models/CatalogItem');
 const authCustomer = require('../middleware/authCustomer');
 const { r2Client, R2_CONFIG } = require('../config/r2');
 const { GetObjectCommand } = require('@aws-sdk/client-s3');
@@ -93,6 +94,55 @@ async function resolveR2Urls(storageKeys) {
     });
 
     return urlMap;
+}
+
+/**
+ * Image-making completion score.
+ * Rules live server-side so future dynamics (time decay, re-photo skin-tone
+ * matching) can roll out without a frontend deploy.
+ */
+const SCORE_RULES = { color: 60, body: 30, inner: 10 };
+
+function computeImageMakingScore(customer) {
+    let score = 0;
+    const breakdown = { color: false, body: false, inner: false };
+    if (customer.colorDiagnosis && customer.colorDiagnosis.type) {
+        score += SCORE_RULES.color;
+        breakdown.color = true;
+    }
+    if (customer.bodyAnalysis && customer.bodyAnalysis.skeletonType) {
+        score += SCORE_RULES.body;
+        breakdown.body = true;
+    }
+    return { score, breakdown, max: 100 };
+}
+
+/**
+ * Collect catalogItemIds from the customer's catalog recommendations and
+ * return the ids of items that are now discontinued.
+ */
+async function findDiscontinuedItemIds(customer) {
+    const recs = (customer.colorDiagnosis && customer.colorDiagnosis.catalogRecommendations) || {};
+    const ids = [];
+    ['shadowBlush', 'lip'].forEach(group => {
+        (recs[group] || []).forEach(item => {
+            if (item && item.catalogItemId) ids.push(item.catalogItemId);
+        });
+    });
+    if (!ids.length) return [];
+
+    try {
+        const validIds = ids.filter(id => /^[0-9a-fA-F]{24}$/.test(id));
+        if (!validIds.length) return [];
+        const discontinued = await CatalogItem.find({
+            _id: { $in: validIds },
+            isDiscontinued: true
+        }).select('_id').lean();
+        return discontinued.map(d => String(d._id));
+    } catch (e) {
+        console.error('[Result] discontinued lookup error:', e.message);
+        return [];
+    }
 }
 
 /**
@@ -196,6 +246,10 @@ router.get('/:customerId', authCustomer, async (req, res, next) => {
         // Resolve keys to presigned URLs
         const imageUrls = await resolveR2Urls(storageKeys);
 
+        // Image-making completion score + discontinued product check
+        const imageMakingScore = computeImageMakingScore(customer);
+        const discontinuedItemIds = await findDiscontinuedItemIds(customer);
+
         // Resolve partner config if customer has a partner assigned
         let partnerConfig = null;
         const partnerCode = customer.customerInfo.partner || '';
@@ -232,7 +286,9 @@ router.get('/:customerId', authCustomer, async (req, res, next) => {
                 styling: customer.styling
             },
             imageUrls,
-            partnerConfig
+            partnerConfig,
+            imageMakingScore,
+            discontinuedItemIds
         });
     } catch (error) {
         next(error);
