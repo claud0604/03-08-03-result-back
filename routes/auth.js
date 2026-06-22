@@ -9,6 +9,10 @@ const Customer = require('../models/Customer');
 const AppSettings = require('../models/AppSettings');
 const { R2_CONFIG } = require('../config/r2');
 
+// Login throttling: lock after N wrong attempts for a fixed window.
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+
 /**
  * POST /api/auth/verify
  * Authenticate customer with customerId + phone last 4 digits
@@ -40,6 +44,21 @@ router.post('/verify', async (req, res, next) => {
             });
         }
 
+        // Check if account is currently locked from too many failed attempts
+        const now = Date.now();
+        if (customer.authSecurity && customer.authSecurity.lockedUntil &&
+            customer.authSecurity.lockedUntil.getTime() > now) {
+            const lockedMinutes = Math.ceil(
+                (customer.authSecurity.lockedUntil.getTime() - now) / 60000
+            );
+            return res.status(429).json({
+                success: false,
+                locked: true,
+                lockedMinutes,
+                message: 'Too many failed attempts. Please try again later.'
+            });
+        }
+
         // Check if diagnosis is published
         if (customer.meta.status !== 'completed') {
             return res.status(403).json({
@@ -53,10 +72,41 @@ router.post('/verify', async (req, res, next) => {
         const storedLast4 = storedDigits.slice(-4);
 
         if (phoneLast4 !== storedLast4) {
+            // Wrong code: increment failure counter and lock if threshold reached.
+            const failedAttempts = ((customer.authSecurity && customer.authSecurity.failedAttempts) || 0) + 1;
+            const update = { 'authSecurity.failedAttempts': failedAttempts };
+            let locked = false;
+            let lockedMinutes = 0;
+
+            if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+                update['authSecurity.lockedUntil'] = new Date(now + LOCK_DURATION_MS);
+                locked = true;
+                lockedMinutes = Math.ceil(LOCK_DURATION_MS / 60000);
+            }
+            await Customer.updateOne({ customerId }, { $set: update });
+
+            if (locked) {
+                return res.status(429).json({
+                    success: false,
+                    locked: true,
+                    lockedMinutes,
+                    message: 'Too many failed attempts. Please try again later.'
+                });
+            }
             return res.status(401).json({
                 success: false,
+                remainingAttempts: MAX_FAILED_ATTEMPTS - failedAttempts,
                 message: 'Invalid credentials.'
             });
+        }
+
+        // Correct code: clear any failure counter / lock
+        if (customer.authSecurity &&
+            (customer.authSecurity.failedAttempts || customer.authSecurity.lockedUntil)) {
+            await Customer.updateOne(
+                { customerId },
+                { $set: { 'authSecurity.failedAttempts': 0, 'authSecurity.lockedUntil': null } }
+            );
         }
 
         // Issue JWT

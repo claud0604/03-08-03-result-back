@@ -236,6 +236,12 @@ const customerSchema = new mongoose.Schema({
             default: 'pending'
         },
         diagnosedBy: { type: String, default: '' }
+    },
+
+    // Result-page login throttling (customerId + phone last 4 digits)
+    authSecurity: {
+        failedAttempts: { type: Number, default: 0 },
+        lockedUntil: { type: Date, default: null }
     }
 }, {
     timestamps: true,
