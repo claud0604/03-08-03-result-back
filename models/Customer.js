@@ -242,6 +242,14 @@ const customerSchema = new mongoose.Schema({
     authSecurity: {
         failedAttempts: { type: Number, default: 0 },
         lockedUntil: { type: Date, default: null }
+    },
+
+    // Re-recommend request (paid when a recommended product is discontinued)
+    reRecommend: {
+        status: { type: String, enum: ['none', 'pending', 'done'], default: 'none' },
+        requestedAt: { type: Date, default: null },
+        completedAt: { type: Date, default: null },
+        orderId: { type: String, default: '' }
     }
 }, {
     timestamps: true,

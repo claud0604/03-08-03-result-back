@@ -16,6 +16,7 @@ const authRouter = require('./routes/auth');
 const resultRouter = require('./routes/result');
 const notifyRouter = require('./routes/notify');
 const chronicleRouter = require('./routes/chronicle');
+const paymentRouter = require('./routes/payment');
 
 const app = express();
 const PORT = process.env.PORT || 3083;
@@ -64,6 +65,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/result', resultRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/chronicle', chronicleRouter);
+app.use('/api/payment', paymentRouter);
 
 // 404 handler
 app.use((req, res) => {
