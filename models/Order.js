@@ -10,4 +10,5 @@ const OrderSchema = new mongoose.Schema({
     paidAt: { type: Date }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Order', OrderSchema, 'orders');
+// 별도 컬렉션 사용: cust-info의 'orders'(orderId unique)와 스키마가 달라 충돌하므로 분리
+module.exports = mongoose.model('Order', OrderSchema, 'rerecommend_orders');
