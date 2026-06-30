@@ -277,6 +277,7 @@ router.get('/:customerId', authCustomer, async (req, res, next) => {
                 customerInfo: {
                     name: customer.customerInfo.name,
                     gender: customer.customerInfo.gender,
+                    email: customer.customerInfo.email || '',
                     partner: partnerCode
                 },
                 customerPhotos: customer.customerPhotos,
