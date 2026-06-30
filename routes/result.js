@@ -290,7 +290,8 @@ router.get('/:customerId', authCustomer, async (req, res, next) => {
             imageUrls,
             partnerConfig,
             imageMakingScore,
-            discontinuedItemIds
+            discontinuedItemIds,
+            reRecommend: { status: (customer.reRecommend && customer.reRecommend.status) || 'none' }
         });
     } catch (error) {
         next(error);
