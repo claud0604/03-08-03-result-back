@@ -8,7 +8,7 @@ const catalogItemSchema = new mongoose.Schema({
     // Classification
     category: {
         type: String,
-        enum: ['cosmetics', 'fashion', 'hair'],
+        enum: ['cosmetics', 'fashion', 'goods', 'fragrance'],
         required: true,
         index: true
     },
