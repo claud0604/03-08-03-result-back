@@ -146,6 +146,41 @@ async function findDiscontinuedItemIds(customer) {
 }
 
 /**
+ * Enrich the customer's catalog recommendations with up-to-date purchaseLinks
+ * (affiliate links) looked up live from the catalog — update-mgmt에서 링크를
+ * 갱신하면 결과 페이지에 즉시 반영된다.
+ */
+async function enrichPurchaseLinks(customer) {
+    const recs = customer.colorDiagnosis && customer.colorDiagnosis.catalogRecommendations;
+    if (!recs) return;
+    const ids = [];
+    ['shadowBlush', 'lip'].forEach(group => {
+        (recs[group] || []).forEach(item => {
+            if (item && item.catalogItemId && /^[0-9a-fA-F]{24}$/.test(item.catalogItemId)) {
+                ids.push(item.catalogItemId);
+            }
+        });
+    });
+    if (!ids.length) return;
+
+    try {
+        const items = await CatalogItem.find({ _id: { $in: ids } })
+            .select('_id purchaseLinks').lean();
+        const linkMap = {};
+        items.forEach(i => { linkMap[String(i._id)] = i.purchaseLinks || []; });
+        ['shadowBlush', 'lip'].forEach(group => {
+            (recs[group] || []).forEach(item => {
+                if (item && item.catalogItemId) {
+                    item.purchaseLinks = linkMap[String(item.catalogItemId)] || [];
+                }
+            });
+        });
+    } catch (e) {
+        console.error('[Result] purchaseLinks enrich error:', e.message);
+    }
+}
+
+/**
  * GET /api/result/:customerId/branding
  * Returns partner branding info (logo + bgColor) without auth.
  * Called on page load before intro animation to apply partner logos.
@@ -249,6 +284,7 @@ router.get('/:customerId', authCustomer, async (req, res, next) => {
         // Image-making completion score + discontinued product check
         const imageMakingScore = computeImageMakingScore(customer);
         const discontinuedItemIds = await findDiscontinuedItemIds(customer);
+        await enrichPurchaseLinks(customer);
 
         // Resolve partner config if customer has a partner assigned
         let partnerConfig = null;
