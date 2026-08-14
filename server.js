@@ -6,6 +6,17 @@
  */
 require('dotenv').config();
 
+// 안정화(2026-08): 처리되지 않은 예외/거부로 프로세스가 즉사하는 것을 방지.
+// unhandledRejection은 대개 개별 요청의 await 누락 → 로깅만 하고 프로세스 유지.
+process.on('unhandledRejection', (reason) => {
+    console.error('[unhandledRejection]', (reason && (reason.stack || reason.message)) || reason);
+});
+// uncaughtException은 상태 불명 → 로깅 후 통제된 종료(PM2가 재시작).
+process.on('uncaughtException', (err) => {
+    console.error('[uncaughtException]', (err && (err.stack || err.message)) || err);
+    setTimeout(() => process.exit(1), 500);
+});
+
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/database');
