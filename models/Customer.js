@@ -76,11 +76,12 @@ const customerSchema = new mongoose.Schema({
             sub: [{ type: String }],
             point: [{ type: String }]
         },
+        // 복수선택 대응: 값은 문자열(레거시 단일) 또는 {main, sub} 객체
         indicators: {
-            temperature: { type: String, default: '' },
-            value: { type: String, default: '' },
-            chroma: { type: String, default: '' },
-            clarity: { type: String, default: '' }
+            temperature: { type: mongoose.Schema.Types.Mixed, default: '' },
+            value: { type: mongoose.Schema.Types.Mixed, default: '' },
+            chroma: { type: mongoose.Schema.Types.Mixed, default: '' },
+            clarity: { type: mongoose.Schema.Types.Mixed, default: '' }
         },
         faceContrastLevel: { type: String, default: '' },
         fashionContrastLevel: { type: String, default: '' },
