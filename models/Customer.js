@@ -174,6 +174,7 @@ const customerSchema = new mongoose.Schema({
         worstTops: [{ type: String }],
         topsComment: { type: String, default: '' },
         skirtLengthComment: { type: String, default: '' },
+        bestSkirtLengths: [{ type: String }],
         bestSkirts: [{ type: String }],
         worstSkirts: [{ type: String }],
         skirtComment: { type: String, default: '' },
